@@ -5,47 +5,46 @@ FROM eclipse-temurin:21-jdk-alpine AS builder
 
 WORKDIR /app
 
-# Copy Maven wrapper and pom.xml first for better Docker layer caching
+# Copy pom.xml first — Docker caches this layer if only source code changes
 COPY pom.xml ./
 
-# Download dependencies (this layer caches if pom.xml doesn't change)
+# Download all Maven dependencies (cached unless pom.xml changes)
 RUN apk add --no-cache maven
 RUN mvn dependency:go-offline -B
 
-# Copy source code
+# Copy source and build
 COPY src ./src
-
-# Build the application
 RUN mvn clean package -DskipTests -B
 
 # =============================================================================
-# Stage 2: Runtime with JRE
+# Stage 2: Runtime with JRE (smaller than JDK)
 # =============================================================================
 FROM eclipse-temurin:21-jre-alpine
 
 WORKDIR /app
 
-# Create non-root user for security
+# Non-root user for container security
 RUN addgroup -S spring && adduser -S spring -G spring
 
-# Copy the built JAR file from stage 1
+# Copy JAR from build stage
 COPY --from=builder /app/target/*.jar app.jar
-
-# Change ownership to non-root user
 RUN chown -R spring:spring /app
 
-# Switch to non-root user
 USER spring:spring
 
-# JVM tuning for containers
+# JVM tuning tuned for container cgroup memory limits
 ENV JAVA_OPTS="-XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 -XX:+UseG1GC"
 
-# Expose the application port
+# Port: respects PORT env var (PaaS platforms like Railway, Render, etc.)
+# Falls back to 8080 if not set.
+ENV SERVER_PORT="${PORT:-8080}"
+
 EXPOSE 8080
 
-# Health check
+# Docker HEALTHCHECK — probes /health every 30s
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
-    CMD wget -qO- http://localhost:8080/health || exit 1
+    CMD wget -qO- http://localhost:${SERVER_PORT}/health || exit 1
 
-# Run the application
-ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar app.jar"]
+# Bind on 0.0.0.0 — required for container networking (not 127.0.0.1)
+ENTRYPOINT ["sh", "-c", \
+    "java $JAVA_OPTS -jar app.jar --server.address=0.0.0.0 --server.port=${SERVER_PORT}"]

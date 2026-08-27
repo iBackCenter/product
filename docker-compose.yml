@@ -7,6 +7,8 @@ services:
     ports:
       - "8080:8080"
     environment:
+      # PORT is read by application.yml via ${PORT:-8080}
+      - PORT=8080
       - SERVER_PORT=8080
       - DUMMYJSON_BASE_URL=https://dummyjson.com
       - DUMMYJSON_CONNECTION_TIMEOUT=5000
