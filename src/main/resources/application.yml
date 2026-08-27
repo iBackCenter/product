@@ -1,0 +1,39 @@
+spring:
+  application:
+    name: product-api
+
+server:
+  port: ${SERVER_PORT:8080}
+  address: 0.0.0.0
+
+dummyjson:
+  base-url: ${DUMMYJSON_BASE_URL:https://dummyjson.com}
+  connection-timeout: ${DUMMYJSON_CONNECTION_TIMEOUT:5000}
+  read-timeout: ${DUMMYJSON_READ_TIMEOUT:10000}
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    operations-sorter: method
+    tags-sorter: alpha
+    enabled: true
+  show-actuator: false
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: always
+
+logging:
+  level:
+    com.example.productapi: INFO
+    com.example.productapi.client: DEBUG
+    org.springframework.web: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
